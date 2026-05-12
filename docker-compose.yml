@@ -1,0 +1,27 @@
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      PORT: "3000"
+      DB_PATH: /data/iou_tracker.db
+      # Set BASE_URL to your public URL (ngrok URL in dev, real domain in prod)
+      BASE_URL: "http://localhost:3000"
+      # Twilio credentials — use a .env file or inject via CI/CD secrets
+      # TWILIO_ACCOUNT_SID: ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+      # TWILIO_AUTH_TOKEN: your_auth_token
+      # TWILIO_PHONE_NUMBER: "+15005550006"
+    volumes:
+      - iou_data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+volumes:
+  iou_data:
+    driver: local

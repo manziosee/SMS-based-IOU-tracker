@@ -1,0 +1,471 @@
+openapi: "3.0.3"
+info:
+  title: IOU Tracker API
+  version: "1.0.0"
+  description: |
+    Track shared expenses by SMS — no app, no bank account required.
+
+    ## SMS commands (send to your Twilio number)
+    | Text | What it does |
+    |------|-------------|
+    | `17.50 for pizza from Maria` | Record: you owe Maria $17.50 |
+    | `balance` | See all you owe + who owes you |
+    | `settle Maria` | Generate a printable receipt |
+    | `history` | Full transaction log |
+    | `history Maria` | Log with one person |
+    | `cancel` | Undo your last debt entry |
+    | `cancel 5` | Undo debt by ID |
+    | `split 60 for dinner with Maria, John` | Split bill, track credits |
+    | `name Bob` | Register your display name |
+    | `help` | Show all commands |
+
+  contact:
+    name: IOU Tracker
+servers:
+  - url: http://localhost:3000
+    description: Local development
+  - url: https://yourdomain.com
+    description: Production
+
+tags:
+  - name: sms
+    description: Twilio SMS webhook
+  - name: users
+    description: User accounts
+  - name: debts
+    description: IOU debt records (what you owe others)
+  - name: split
+    description: Group bill splitting (what others owe you)
+  - name: receipts
+    description: Settlement receipts
+
+paths:
+  /sms:
+    post:
+      tags: [sms]
+      summary: Twilio SMS webhook
+      description: |
+        Receives inbound SMS from Twilio. Returns TwiML XML.
+        Configure this URL in your Twilio console under
+        Phone Numbers → Messaging → "A message comes in".
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required: [From, Body]
+              properties:
+                From:
+                  type: string
+                  example: "+15550001111"
+                  description: Sender's phone number (E.164)
+                To:
+                  type: string
+                  example: "+15005550006"
+                  description: Your Twilio number
+                Body:
+                  type: string
+                  example: "17.50 for pizza from Maria"
+                  description: SMS message body
+      responses:
+        "200":
+          description: TwiML response
+          content:
+            text/xml:
+              example: |
+                <?xml version="1.0" encoding="UTF-8"?>
+                <Response><Message>Recorded: You owe Maria $17.50 for pizza (ID: 5).</Message></Response>
+
+  /api/users/{phone}:
+    get:
+      tags: [users]
+      summary: Get user by phone number
+      parameters:
+        - name: phone
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "+15550001111"
+      responses:
+        "200":
+          description: User object
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/users/{phone}/debts:
+    get:
+      tags: [users, debts]
+      summary: Get pending debts grouped by creditor
+      parameters:
+        - name: phone
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "+15550001111"
+      responses:
+        "200":
+          description: Pending debts
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  phone:
+                    type: string
+                  debts:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/DebtSummary"
+
+  /api/users/{phone}/history:
+    get:
+      tags: [users, debts]
+      summary: Full transaction history (debts + credits, all statuses)
+      parameters:
+        - name: phone
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Transaction history
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  phone:
+                    type: string
+                  debts:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Debt"
+                  credits:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Credit"
+
+  /api/debts:
+    post:
+      tags: [debts]
+      summary: Record a new debt via REST
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateDebtRequest"
+            example:
+              debtor_phone: "+15550001111"
+              creditor_name: "Maria"
+              amount: 17.50
+              description: "pizza"
+      responses:
+        "201":
+          description: Debt created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  debt_id:
+                    type: integer
+                  message:
+                    type: string
+                  total_owed_to:
+                    type: number
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /api/debts/{id}/cancel:
+    post:
+      tags: [debts]
+      summary: Cancel a pending debt
+      description: |
+        Cancels the debt only if the `phone` in the body matches the original debtor.
+        Use this to undo a mis-entered amount.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phone]
+              properties:
+                phone:
+                  type: string
+                  description: Must match the debtor's phone
+            example:
+              phone: "+15550001111"
+      responses:
+        "200":
+          description: Debt cancelled
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  cancelled_id:
+                    type: integer
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/split:
+    post:
+      tags: [split]
+      summary: Split a bill among multiple people
+      description: |
+        Records that each participant owes the payer an equal share.
+        The payer's own share is included in the division — if 3 people split $60,
+        each share is $20 and two credit records are created.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SplitRequest"
+            example:
+              payer_phone: "+15550001111"
+              participants: ["Maria", "John"]
+              amount: 60.00
+              description: "dinner"
+      responses:
+        "201":
+          description: Split recorded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  share:
+                    type: number
+                    description: Per-person amount
+                  participants:
+                    type: integer
+                  message:
+                    type: string
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /receipt/{token}:
+    get:
+      tags: [receipts]
+      summary: View printable IOU receipt (HTML page)
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Printable HTML receipt
+          content:
+            text/html:
+              schema:
+                type: string
+        "404":
+          description: Receipt not found
+
+  /receipt/{token}/settle:
+    post:
+      tags: [receipts]
+      summary: Mark receipt as settled
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "302":
+          description: Redirects back to the receipt page
+        "404":
+          description: Receipt not found
+        "409":
+          description: Already settled
+
+  /api/receipts/{token}:
+    get:
+      tags: [receipts]
+      summary: Get receipt as JSON
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Receipt object
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Receipt"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+components:
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+        phone:
+          type: string
+          example: "+15550001111"
+        name:
+          type: string
+          nullable: true
+          example: "Bob"
+        created_at:
+          type: string
+          format: date-time
+
+    Debt:
+      type: object
+      properties:
+        id:
+          type: integer
+        debtor_phone:
+          type: string
+        creditor_name:
+          type: string
+        amount:
+          type: number
+        description:
+          type: string
+        status:
+          type: string
+          enum: [pending, receipted, cancelled, settled]
+        created_at:
+          type: string
+          format: date-time
+
+    DebtSummary:
+      type: object
+      properties:
+        creditor_name:
+          type: string
+        total:
+          type: number
+        count:
+          type: integer
+
+    Credit:
+      type: object
+      properties:
+        id:
+          type: integer
+        creditor_phone:
+          type: string
+        debtor_name:
+          type: string
+        amount:
+          type: number
+        description:
+          type: string
+        status:
+          type: string
+          enum: [pending, settled]
+        created_at:
+          type: string
+          format: date-time
+
+    Receipt:
+      type: object
+      properties:
+        id:
+          type: integer
+        token:
+          type: string
+        debtor_phone:
+          type: string
+        debtor_name:
+          type: string
+          nullable: true
+        creditor_name:
+          type: string
+        total_amount:
+          type: number
+        debt_details:
+          type: string
+          description: JSON string of itemized debts
+        status:
+          type: string
+          enum: [active, settled]
+        created_at:
+          type: string
+          format: date-time
+        settled_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    CreateDebtRequest:
+      type: object
+      required: [debtor_phone, creditor_name, amount, description]
+      properties:
+        debtor_phone:
+          type: string
+        creditor_name:
+          type: string
+        amount:
+          type: number
+          minimum: 0.01
+        description:
+          type: string
+
+    SplitRequest:
+      type: object
+      required: [payer_phone, participants, amount, description]
+      properties:
+        payer_phone:
+          type: string
+        participants:
+          type: array
+          items:
+            type: string
+          minItems: 1
+        amount:
+          type: number
+          minimum: 0.01
+        description:
+          type: string
+
+  responses:
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+    BadRequest:
+      description: Missing or invalid parameters
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string

@@ -1,0 +1,299 @@
+{
+  "info": {
+    "_postman_id": "iou-tracker-v1",
+    "name": "IOU Tracker API",
+    "description": "SMS-based IOU tracker — test all endpoints locally or against production.\n\nSet the `base_url` variable to `http://localhost:3000` for local dev.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url",    "value": "http://localhost:3000" },
+    { "key": "phone_bob",   "value": "+15550001111" },
+    { "key": "phone_maria", "value": "+15550002222" }
+  ],
+  "item": [
+    {
+      "name": "SMS Simulation (Twilio webhook)",
+      "description": "Simulate inbound SMS messages as Twilio would send them (form-encoded POST to /sms).",
+      "item": [
+        {
+          "name": "Record Debt — 17.50 for pizza from Maria",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/sms",
+            "header": [{ "key": "Content-Type", "value": "application/x-www-form-urlencoded" }],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "From", "value": "{{phone_bob}}" },
+                { "key": "To",   "value": "+15005550006" },
+                { "key": "Body", "value": "17.50 for pizza from Maria" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Check Balance",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/sms",
+            "header": [{ "key": "Content-Type", "value": "application/x-www-form-urlencoded" }],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "From", "value": "{{phone_bob}}" },
+                { "key": "Body", "value": "balance" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Full History",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/sms",
+            "header": [{ "key": "Content-Type", "value": "application/x-www-form-urlencoded" }],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "From", "value": "{{phone_bob}}" },
+                { "key": "Body", "value": "history" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "History with Maria",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/sms",
+            "header": [{ "key": "Content-Type", "value": "application/x-www-form-urlencoded" }],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "From", "value": "{{phone_bob}}" },
+                { "key": "Body", "value": "history Maria" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Cancel Last Debt",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/sms",
+            "header": [{ "key": "Content-Type", "value": "application/x-www-form-urlencoded" }],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "From", "value": "{{phone_bob}}" },
+                { "key": "Body", "value": "cancel" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Cancel Debt by ID",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/sms",
+            "header": [{ "key": "Content-Type", "value": "application/x-www-form-urlencoded" }],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "From", "value": "{{phone_bob}}" },
+                { "key": "Body", "value": "cancel 3" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Split Bill with Maria and John",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/sms",
+            "header": [{ "key": "Content-Type", "value": "application/x-www-form-urlencoded" }],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "From", "value": "{{phone_bob}}" },
+                { "key": "Body", "value": "split 60 for dinner with Maria, John" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Generate Settle Receipt for Maria",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/sms",
+            "header": [{ "key": "Content-Type", "value": "application/x-www-form-urlencoded" }],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "From", "value": "{{phone_bob}}" },
+                { "key": "Body", "value": "settle Maria" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Register Name",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/sms",
+            "header": [{ "key": "Content-Type", "value": "application/x-www-form-urlencoded" }],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "From", "value": "{{phone_bob}}" },
+                { "key": "Body", "value": "name Bob" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Help",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/sms",
+            "header": [{ "key": "Content-Type", "value": "application/x-www-form-urlencoded" }],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "From", "value": "{{phone_bob}}" },
+                { "key": "Body", "value": "help" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "REST API — Users",
+      "item": [
+        {
+          "name": "Get User",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/users/{{phone_bob}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users", "{{phone_bob}}"]
+            }
+          }
+        },
+        {
+          "name": "Get Pending Debts",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/users/{{phone_bob}}/debts",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users", "{{phone_bob}}", "debts"]
+            }
+          }
+        },
+        {
+          "name": "Get Full History",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/users/{{phone_bob}}/history",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users", "{{phone_bob}}", "history"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "REST API — Debts",
+      "item": [
+        {
+          "name": "Create Debt",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/debts",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"debtor_phone\": \"{{phone_bob}}\",\n  \"creditor_name\": \"Maria\",\n  \"amount\": 17.50,\n  \"description\": \"pizza\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Cancel Debt by ID",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/debts/1/cancel",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"{{phone_bob}}\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "REST API — Split",
+      "item": [
+        {
+          "name": "Split Bill",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/split",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"payer_phone\": \"{{phone_bob}}\",\n  \"participants\": [\"Maria\", \"John\"],\n  \"amount\": 60.00,\n  \"description\": \"dinner\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "REST API — Receipts",
+      "item": [
+        {
+          "name": "Get Receipt (JSON)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/receipts/PASTE_TOKEN_HERE"
+          }
+        },
+        {
+          "name": "View Receipt (HTML)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/receipt/PASTE_TOKEN_HERE"
+          }
+        },
+        {
+          "name": "Mark Receipt Settled",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/receipt/PASTE_TOKEN_HERE/settle"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Docs",
+      "item": [
+        {
+          "name": "Swagger UI",
+          "request": { "method": "GET", "url": "{{base_url}}/docs" }
+        },
+        {
+          "name": "OpenAPI Spec (YAML)",
+          "request": { "method": "GET", "url": "{{base_url}}/openapi.yaml" }
+        },
+        {
+          "name": "Landing Page",
+          "request": { "method": "GET", "url": "{{base_url}}/" }
+        }
+      ]
+    }
+  ]
+}
