@@ -42,6 +42,10 @@
 (def ^:private re-split
   #"(?i)^split\s+(\d+(?:\.\d{1,2})?)\s+for\s+(.+?)\s+with\s+(.+)$")
 
+(def ^:private re-note
+  ;; "note 5 paid half in cash"
+  #"(?i)^note\s+(\d+)\s+(.+)$")
+
 (def ^:private re-name
   #"(?i)^name\s+(.+)$")
 
@@ -90,6 +94,12 @@
          :description  (clojure.string/trim description)
          :participants (parse-participants names-str)})
 
+      (re-find re-note body)
+      (let [[_ id-str note-text] (re-find re-note body)]
+        {:cmd       :note
+         :debt-id   (Long/parseLong id-str)
+         :note-text (clojure.string/trim note-text)})
+
       (re-find re-name body)
       (let [[_ name] (re-find re-name body)]
         {:cmd :set-name :name (clojure.string/trim name)})
@@ -111,6 +121,7 @@
      "  history Maria                   — log with one person"
      "  cancel                          — undo your last debt entry"
      "  cancel 5                        — undo debt by ID"
+     "  note 5 paid half in cash        — annotate a debt with context"
      "  split 60 for dinner with A, B   — split bill, track credits"
      "  name Bob                        — register your name"
      "  help                            — this message"]))
@@ -149,7 +160,8 @@
         fmt-row #(str "  [" (:status %) "] "
                       (format-amount (:amount %)) " for " (:description %)
                       " (" (subs (:created_at %) 0 10) ")"
-                      " #" (:id %))]
+                      " #" (:id %)
+                      (when (seq (:notes %)) (str "\n    Note: " (:notes %))))]
     (if (and (empty? debts) (empty? credits))
       (str label ": no transactions found.")
       (clojure.string/join "\n"
@@ -161,7 +173,6 @@
            (when (seq credits)
              (clojure.string/join "\n"
                (concat ["Owed to you:"] (map fmt-row credits))))])))))
-
 (defn build-split-text [description amount share participants]
   (let [total-people (inc (count participants))
         lines        (map #(str "  " % " owes you " (format-amount share)) participants)]

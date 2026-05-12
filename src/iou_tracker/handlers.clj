@@ -90,6 +90,12 @@
                 {:keys [share count]} (db/record-split! from participants amount description)]
             (sms/build-split-text description amount share participants))
 
+          :note
+          (let [{:keys [debt-id note-text]} (sms/parse-command body)]
+            (if (db/add-debt-note! debt-id from note-text)
+              (str "Note added to debt #" debt-id ": \"" note-text "\"")
+              (str "Could not find debt #" debt-id ". Check the ID with 'history'.")))
+
           :set-name
           (let [{:keys [name]} (sms/parse-command body)]
             (db/set-user-name! from name)
@@ -165,6 +171,14 @@
                             :participants count
                             :message      (sms/build-split-text description amount share participants)})))))
 
+(defn api-add-note [id request]
+  (let [{:keys [phone note]} (parse-json-body request)
+        debt-id              (Long/parseLong (str id))]
+    (cond
+      (some nil? [phone note]) (json-response 400 {:error "Required: phone, note"})
+      (db/add-debt-note! debt-id phone note) (json-response {:success true :debt_id debt-id :note note})
+      :else (json-response 404 {:error "Debt not found or you are not the owner"}))))
+
 (defn api-get-receipt [token]
   (if-let [r (db/get-receipt token)]
     (json-response r)
@@ -213,6 +227,7 @@
   (GET  "/api/users/:phone/history"  [phone]   (api-get-history phone))
   (POST "/api/debts"                 request   (api-create-debt request))
   (POST "/api/debts/:id/cancel"      [id :as r] (api-cancel-debt id r))
+  (POST "/api/debts/:id/note"        [id :as r] (api-add-note id r))
   (POST "/api/split"                 request   (api-split request))
   (GET  "/api/receipts/:token"       [token]   (api-get-receipt token))
 

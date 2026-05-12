@@ -53,6 +53,10 @@
       created_at    DATETIME DEFAULT CURRENT_TIMESTAMP,
       settled_at    DATETIME
     )"])
+  ;; Feature 4: notes column — ALTER TABLE is safe to retry; silently skip if column exists
+  (try
+    (jdbc/execute! (ds) ["ALTER TABLE debts ADD COLUMN notes TEXT"])
+    (catch Exception _))
   ;; Feature 3: tracks money others owe the SMS user (created via split)
   (jdbc/execute! (ds) ["
     CREATE TABLE IF NOT EXISTS credits (
@@ -195,6 +199,20 @@
                  ["UPDATE debts SET status = 'cancelled'
                    WHERE id = ? AND debtor_phone = ? AND status = 'pending'"
                   debt-id debtor-phone])]
+    (pos? (get result :next.jdbc/update-count 0))))
+
+;; ---------------------------------------------------------------------------
+;; Feature 4 — Debt Notes
+;; ---------------------------------------------------------------------------
+
+(defn add-debt-note!
+  "Appends or replaces the free-text note on a debt.
+   Only the original debtor can annotate their own debt.
+   Returns true if a row was updated."
+  [debt-id debtor-phone note-text]
+  (let [result (jdbc/execute-one! (ds)
+                 ["UPDATE debts SET notes = ? WHERE id = ? AND debtor_phone = ?"
+                  (clojure.string/trim note-text) debt-id debtor-phone])]
     (pos? (get result :next.jdbc/update-count 0))))
 
 ;; ---------------------------------------------------------------------------

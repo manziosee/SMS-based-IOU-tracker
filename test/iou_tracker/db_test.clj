@@ -100,6 +100,32 @@
     (testing "cancel-debt! returns false for non-existent / already cancelled"
       (is (false? (db/cancel-debt! id "+15550030000"))))))
 
+;; ---------------------------------------------------------------------------
+;; Feature 4 — Debt Notes
+;; ---------------------------------------------------------------------------
+
+(deftest add-debt-note-test
+  (let [id (db/record-debt! "+15550070000" "Maria" 20.0 "dinner")]
+    (testing "add-debt-note! returns true on success"
+      (is (true? (db/add-debt-note! id "+15550070000" "paid half already"))))
+
+    (testing "note is persisted on the debt"
+      (let [d (db/get-debt id)]
+        (is (= "paid half already" (:notes d)))))
+
+    (testing "note can be updated"
+      (db/add-debt-note! id "+15550070000" "fully paid back")
+      (is (= "fully paid back" (:notes (db/get-debt id)))))
+
+    (testing "wrong owner cannot add note"
+      (is (false? (db/add-debt-note! id "+19999999999" "hacked"))))))
+
+(deftest note-appears-in-history-test
+  (let [id (db/record-debt! "+15550071000" "Bob" 15.0 "coffee")]
+    (db/add-debt-note! id "+15550071000" "paying Friday")
+    (let [history (db/debt-history "+15550071000")]
+      (is (= "paying Friday" (:notes (first history)))))))
+
 (deftest cancel-wrong-owner-test
   (let [id (db/record-debt! "+15550031111" "Maria" 5.0 "coffee")]
     (testing "cannot cancel another user's debt"

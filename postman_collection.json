@@ -122,6 +122,21 @@
           }
         },
         {
+          "name": "Add Note to Debt",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/sms",
+            "header": [{ "key": "Content-Type", "value": "application/x-www-form-urlencoded" }],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "From", "value": "{{phone_bob}}" },
+                { "key": "Body", "value": "note 3 paid half in cash, rest next week" }
+              ]
+            }
+          }
+        },
+        {
           "name": "Generate Settle Receipt for Maria",
           "request": {
             "method": "POST",
@@ -230,6 +245,18 @@
             "body": {
               "mode": "raw",
               "raw": "{\n  \"phone\": \"{{phone_bob}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Add Note to Debt",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/debts/1/note",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"{{phone_bob}}\",\n  \"note\": \"paid half in cash, rest next week\"\n}"
             }
           }
         }

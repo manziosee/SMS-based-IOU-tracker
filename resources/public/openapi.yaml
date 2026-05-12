@@ -185,6 +185,56 @@ paths:
         "400":
           $ref: "#/components/responses/BadRequest"
 
+  /api/debts/{id}/note:
+    post:
+      tags: [debts]
+      summary: Add or update a note on a debt
+      description: |
+        Attaches free-text context to a debt entry — e.g. "paid $10 back already"
+        or "will settle Friday". Only the original debtor can annotate their debt.
+        Visible in history output and on the receipt.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phone, note]
+              properties:
+                phone:
+                  type: string
+                  description: Must match the debtor's phone (ownership check)
+                note:
+                  type: string
+                  example: "paid half in cash, rest next week"
+            example:
+              phone: "+15550001111"
+              note: "paid half in cash, rest next week"
+      responses:
+        "200":
+          description: Note saved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  debt_id:
+                    type: integer
+                  note:
+                    type: string
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
   /api/debts/{id}/cancel:
     post:
       tags: [debts]

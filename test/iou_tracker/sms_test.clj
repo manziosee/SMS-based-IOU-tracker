@@ -126,6 +126,30 @@
     (is (re-find #"3 ways"  text))))
 
 ;; ---------------------------------------------------------------------------
+;; Feature 4 — Debt Notes
+;; ---------------------------------------------------------------------------
+
+(deftest parse-note
+  (testing "note with ID and text"
+    (let [cmd (sms/parse-command "note 5 paid half in cash")]
+      (is (= :note (:cmd cmd)))
+      (is (= 5 (:debt-id cmd)))
+      (is (= "paid half in cash" (:note-text cmd)))))
+
+  (testing "note with multi-word text"
+    (let [cmd (sms/parse-command "note 12 met at the cafe, gave $10 back")]
+      (is (= :note (:cmd cmd)))
+      (is (= 12 (:debt-id cmd)))
+      (is (= "met at the cafe, gave $10 back" (:note-text cmd)))))
+
+  (testing "case insensitive keyword"
+    (is (= :note (:cmd (sms/parse-command "NOTE 3 something"))))))
+
+(deftest note-requires-id-and-text
+  (testing "no ID falls through to unknown"
+    (is (= :unknown (:cmd (sms/parse-command "note"))))))
+
+;; ---------------------------------------------------------------------------
 ;; Response builders
 ;; ---------------------------------------------------------------------------
 
